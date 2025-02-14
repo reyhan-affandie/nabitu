@@ -2,6 +2,7 @@
 import { authDocs } from "@/swaggers/auth.docs";
 import swaggerJsdoc from "swagger-jsdoc";
 import { invoicesDocs } from "./invoices.docs";
+import { usersDocs } from "./users.docs";
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -13,8 +14,8 @@ const options: swaggerJsdoc.Options = {
     },
     components: authDocs.components, // Direct reference to ensure dynamic updates
     security: authDocs.security, // Direct reference to ensure dynamic updates
-    tags: [...authDocs.tags, ...invoicesDocs.tags],
-    paths: { ...authDocs.paths, ...invoicesDocs.paths }, // Combine paths dynamically
+    tags: [...authDocs.tags, ...usersDocs.tags, ...invoicesDocs.tags],
+    paths: { ...authDocs.paths, ...usersDocs.paths, ...invoicesDocs.paths }, // Combine paths dynamically
     servers: [
       {
         url: "http://localhost:5000", // Replace with your server URL
