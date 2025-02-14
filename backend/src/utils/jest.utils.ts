@@ -69,7 +69,7 @@ export const generateMockTokenRandom = (_id: Types.ObjectId | string, email: str
 
 export const generateMockTokenExp = (_id: Types.ObjectId | string, email: string, name: string): string => {
   const iat = Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 8; // 8 days ago
-  const exp = iat + 60 * 60 * 24 * 7; // iat + 7 days
+  const exp = Math.floor(Date.now() / 1000) - 60 * 60 * 24; // 1 days ago
 
   return `Bearer ${jwt.sign(
     {

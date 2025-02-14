@@ -49,10 +49,9 @@ export const register: RequestHandler = async (req, res, next) => {
 
     let data;
     if (checkExist) {
-      await Model.updateOne({ _id: generateId, parent: generateId }, requestValues, { session });
+      await Model.updateOne({ _id: generateId }, requestValues, { session });
       data = await Model.findOne({
         _id: generateId,
-        parent: generateId,
       }).session(session);
     } else {
       data = await Model.create([requestValues], { session });
@@ -214,12 +213,6 @@ export const login: RequestHandler = async (req, res, next) => {
       name: String(user.name),
     };
     const token = generateToken(tokenPayload);
-    /*const requestOrigin = req.get("origin");
-
-    if (requestOrigin === APP_ORIGIN) {
-      res.status(OK).type("text/plain").send(token);
-      return;
-    }*/
     res.status(CREATED).json({ ...tokenPayload, token });
   } catch (error) {
     next(error);

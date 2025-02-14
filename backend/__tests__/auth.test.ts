@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import supertest from "supertest";
 import app from "../src/app";
-import { CREATED, BAD_REQUEST, OK, UNAUTHORIZED, NOT_FOUND } from "../src/constants/http";
+import { CREATED, BAD_REQUEST, OK, UNAUTHORIZED, NOT_FOUND, INTERNAL_SERVER_ERROR } from "../src/constants/http";
 import { fields } from "../src/models/users.model";
 import {
   register,
@@ -32,12 +32,26 @@ describe(`${moduleName} Controller UNIT TESTS`, () => {
   const overridesData = {
     password,
   };
+  const overridesUser = {
+    email,
+    password,
+  };
 
-  it(`${testTitle} REGISTER - ${OK}:OK`, async () => {
+  it(`${testTitle} REGISTER - ${CREATED}:CREATED`, async () => {
     await register(fields, CREATED, [], { ...overridesData });
+  });
+  it(`${testTitle} REGISTER - ${CREATED}:CREATED`, async () => {
+    await register(fields, CREATED, [], { ...overridesUser });
+    await register(fields, CREATED, [], { ...overridesUser });
   });
   it(`${testTitle} REGISTER - ${BAD_REQUEST}:BAD_REQUEST`, async () => {
     await register(fields, BAD_REQUEST, ["email", "name", "password"], {});
+  });
+  it(`${testTitle} REGISTER - ${INTERNAL_SERVER_ERROR}:INTERNAL_SERVER_ERROR`, async () => {
+    const login = await loginFlow(overridesData);
+    expect(login.body.token).toBeDefined();
+    overridesUser.email = login?.body?.email;
+    await register(fields, INTERNAL_SERVER_ERROR, [], { ...overridesUser });
   });
   it(`${testTitle} SEND VERIFY EMAIL - ${OK}:OK`, async () => {
     const reg = await register(fields, CREATED, [], { ...overridesData });
@@ -89,7 +103,7 @@ describe(`${moduleName} Controller UNIT TESTS`, () => {
   it(`${testTitle} LOGIN - ${UNAUTHORIZED}:UNAUTHORIZED`, async () => {
     const verifyEmail = await verifyEmailFlow(overridesData);
     expect(verifyEmail.body.token).toBeDefined();
-    const login = await loginRequest(moduleName, invalidCredential, UNAUTHORIZED);
+    const login = await loginRequest(moduleName, invalidCredentialBoth, UNAUTHORIZED);
     expect(login.body.token).toBeUndefined();
     expect(login.body.status).toBe(UNAUTHORIZED);
   });
@@ -97,7 +111,8 @@ describe(`${moduleName} Controller UNIT TESTS`, () => {
   it(`${testTitle} LOGIN - ${UNAUTHORIZED}:UNAUTHORIZED`, async () => {
     const verifyEmail = await verifyEmailFlow(overridesData);
     expect(verifyEmail.body.token).toBeDefined();
-    const login = await loginRequest(moduleName, invalidCredentialBoth, UNAUTHORIZED);
+    invalidCredential.email = verifyEmail?.body?.email;
+    const login = await loginRequest(moduleName, invalidCredential, UNAUTHORIZED);
     expect(login.body.token).toBeUndefined();
     expect(login.body.status).toBe(UNAUTHORIZED);
   });
