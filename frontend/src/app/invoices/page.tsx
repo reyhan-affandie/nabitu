@@ -299,6 +299,7 @@ export default function InvoicesPage() {
                 type="select"
                 id="pagination"
                 placeHolder={`Page ${currentPage}`}
+                value={`Page ${currentPage}`}
                 options={Array.from({ length: totalPages }, (_, i) => ({ label: `Page ${i + 1}`, value: i + 1 }))}
                 onChange={(e) => {
                   setCurrentPage(Number(e.target.value));

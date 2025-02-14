@@ -68,7 +68,7 @@ const Upsert = () => {
   useEffect(() => {
     if (formState?.error === false) {
       if (data?.data?.formMethod === "update") {
-        toast.info("Invoice successfuly Updated", {
+        toast.info("Invoice successfully Updated", {
           position: "bottom-right",
           autoClose: 3000,
           hideProgressBar: false,
@@ -79,7 +79,7 @@ const Upsert = () => {
           theme: "colored",
         });
       } else {
-        toast.success("Invoice successfuly Created", {
+        toast.success("Invoice successfully Created", {
           position: "bottom-right",
           autoClose: 3000,
           hideProgressBar: false,
