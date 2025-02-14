@@ -72,7 +72,6 @@ export const register: RequestHandler = async (req, res, next) => {
       data._id,                 // moduleId user
       generateId,               // userId user
     );
-    console.log(resultUser);
 
     // RETURN RESPONSE
     res.status(CREATED).json(resultUser);

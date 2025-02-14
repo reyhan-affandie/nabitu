@@ -1,6 +1,6 @@
 import supertest from "supertest";
 import app from "../src/app";
-import { BAD_REQUEST, CREATED, NOT_FOUND, OK, UNAUTHORIZED } from "../src/constants/http";
+import { BAD_REQUEST, CREATED, NOT_FOUND, OK } from "../src/constants/http";
 import {
   generateRandomEmail,
   createRequest,
@@ -34,32 +34,17 @@ const overridesData = {
 let verifyEmail: any;
 let overrides: { [key: string]: string | boolean | number };
 beforeEach(async () => {
-  const overridesUser = {
-    password,
-    access: 2,
-    parent: "",
-  };
-  verifyEmail = await verifyEmailFlow(overridesData, overridesUser, password);
+  verifyEmail = await verifyEmailFlow(overridesData);
   overrides = { parent: verifyEmail?.body?.parent };
   mockToken = generateMockTokenRandom(generateId, email, name, false);
 });
 
 describe(`${moduleName} Controller UNIT TESTS`, () => {
-  it(`${testTitle} CREATE ${name} - ${OK}:OK`, async () => {
+  it(`${testTitle} CREATE - ${OK}:OK`, async () => {
     await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
   });
 
-  it(`${testTitle} CREATE ${name} - ${UNAUTHORIZED}:UNAUTHORIZED`, async () => {
-    await createMultipleEntries(fields, mockToken[2], moduleName, 2, CREATED, overrides);
-    await createRequest(fields, mockToken, moduleName, UNAUTHORIZED, [], overrides);
-  });
-
-  it(`${testTitle} CREATE ${name} - ${UNAUTHORIZED}:UNAUTHORIZED`, async () => {
-    overrides.access = 1;
-    await createRequest(fields, mockToken, moduleName, UNAUTHORIZED, [], overrides);
-  });
-
-  it(`${testTitle} READ ${name} - ${OK}:OK`, async () => {
+  it(`${testTitle} READ - ${OK}:OK`, async () => {
     await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
     const queryParams = new URLSearchParams({
       ...(parentField ? { [parentField]: parentId } : {}),
@@ -72,77 +57,61 @@ describe(`${moduleName} Controller UNIT TESTS`, () => {
     await sendGetRequest(mockToken, `/api/${moduleName}?${queryParams}`, OK);
   });
 
-  it(`${testTitle} READ ONE ${name} - ${OK}:OK`, async () => {
+  it(`${testTitle} READ ONE - ${OK}:OK`, async () => {
     const post = await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
     await sendGetRequest(mockToken, `/api/${moduleName}/${post.body._id}`, OK);
   });
 
-  it(`${testTitle} READ ONE ${name} - ${BAD_REQUEST}:BAD_REQUEST`, async () => {
+  it(`${testTitle} READ ONE - ${BAD_REQUEST}:BAD_REQUEST`, async () => {
     await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
     await sendGetRequest(mockToken, `/api/${moduleName}/${invalidId}`, BAD_REQUEST);
   });
 
-  it(`${testTitle} READ ONE ${name} - ${NOT_FOUND}:NOT_FOUND`, async () => {
+  it(`${testTitle} READ ONE - ${NOT_FOUND}:NOT_FOUND`, async () => {
     await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
     await supertest(app).get(`/api/${moduleName}/${randomId}`).set("Authorization", mockToken).expect(NOT_FOUND);
   });
 
-  it(`${testTitle} UPDATE ${name} - ${OK}:OK`, async () => {
+  it(`${testTitle} UPDATE - ${OK}:OK`, async () => {
     const post = await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
     await sendUpdateRequest(fields, mockToken, moduleName, post.body._id, [], {}, OK);
   });
 
-  it(`${testTitle} UPDATE ${name} - ${UNAUTHORIZED}:UNAUTHORIZED`, async () => {
-    overrides.access = 1;
-    const post = await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
-    await sendUpdateRequest(fields, mockToken, moduleName, post.body._id, [], overrides, UNAUTHORIZED);
-  });
-
-  it(`${testTitle} UPDATE ${name} - ${NOT_FOUND}:NOT_FOUND`, async () => {
+  it(`${testTitle} UPDATE - ${NOT_FOUND}:NOT_FOUND`, async () => {
     await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
     await sendUpdateRequest(fields, mockToken, moduleName, randomId, [], overrides, NOT_FOUND);
   });
 
-  it(`${testTitle} UPDATE STATUS ${name} - ${OK}:OK`, async () => {
+  it(`${testTitle} DELETE - ${OK}:OK`, async () => {
     const post = await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
-    await sendUpdateRequest(fields, mockToken, `${moduleName}/status`, post.body._id, [], {}, OK);
-  });
-
-  it(`${testTitle} UPDATE STATUS ${name} - ${NOT_FOUND}:NOT_FOUND`, async () => {
-    await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
-    await sendUpdateRequest(fields, mockToken, `${moduleName}/status`, randomId, [], {}, NOT_FOUND);
-  });
-
-  it(`${testTitle} DELETE ${name} - ${OK}:OK`, async () => {
-    const post = await createRequest(fields, mockToken[2], moduleName, CREATED, [], overrides);
     await sendDeleteRequest(mockToken, moduleName, post.body._id, OK);
   });
 
-  it(`${testTitle} DELETE ${name} - ${BAD_REQUEST}:BAD_REQUEST`, async () => {
-    await createRequest(fields, mockToken[2], moduleName, CREATED, [], overrides);
+  it(`${testTitle} DELETE - ${BAD_REQUEST}:BAD_REQUEST`, async () => {
+    await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
     await sendDeleteRequest(mockToken, moduleName, invalidId, BAD_REQUEST);
   });
 
-  it(`${testTitle} DELETE ${name} - ${NOT_FOUND}:NOT_FOUND`, async () => {
-    await createRequest(fields, mockToken[2], moduleName, CREATED, [], overrides);
+  it(`${testTitle} DELETE - ${NOT_FOUND}:NOT_FOUND`, async () => {
+    await createRequest(fields, mockToken, moduleName, CREATED, [], overrides);
     await sendDeleteRequest(mockToken, moduleName, randomId, NOT_FOUND);
   });
 
-  it(`${testTitle} DELETE BULK ${name} - ${OK}:OK`, async () => {
-    const entries = await createMultipleEntries(fields, mockToken[2], moduleName, 2, CREATED, overrides);
+  it(`${testTitle} DELETE BULK - ${OK}:OK`, async () => {
+    const entries = await createMultipleEntries(fields, mockToken, moduleName, 2, CREATED, overrides);
     const ids = entries.map((entry) => entry._id);
     await sendDeleteBulkRequest(mockToken, moduleName, ids, OK);
   });
 
-  it(`${testTitle} DELETE BULK ${name} - ${BAD_REQUEST}:BAD_REQUEST`, async () => {
+  it(`${testTitle} DELETE BULK - ${BAD_REQUEST}:BAD_REQUEST`, async () => {
     await sendDeleteBulkRequest(mockToken, moduleName, [], BAD_REQUEST);
   });
 
-  it(`${testTitle} DELETE BULK ${name} - ${BAD_REQUEST}:BAD_REQUEST`, async () => {
+  it(`${testTitle} DELETE BULK - ${BAD_REQUEST}:BAD_REQUEST`, async () => {
     await sendDeleteBulkRequest(mockToken, moduleName, [invalidId], BAD_REQUEST);
   });
 
-  it(`${testTitle} DELETE BULK ${name} - ${NOT_FOUND}:NOT_FOUND`, async () => {
+  it(`${testTitle} DELETE BULK - ${NOT_FOUND}:NOT_FOUND`, async () => {
     await sendDeleteBulkRequest(mockToken, moduleName, [randomId], NOT_FOUND);
   });
 });

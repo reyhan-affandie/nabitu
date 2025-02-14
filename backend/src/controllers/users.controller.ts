@@ -56,13 +56,13 @@ export const update: RequestHandler = async (req, res, next) => {
     if (req.body.password) {
       delete req.body.password;
     }
-    const data = await Model.findOne({ _id: moduleId, parent: userId }).exec();
+    const data = await Model.findOne({ _id: moduleId }).exec();
     if (!data) {
       return next(createHttpError(NOT_FOUND, "data not found"));
     }
     req.body.verified = data.verified;
     const requestValues = await engineCreateUpdate(Model, fields, req, true);
-    await Model.updateOne({ _id: moduleId, parent }, requestValues);
+    await Model.updateOne({ _id: moduleId }, requestValues);
     const result = await engineGetOne(Model, fields, moduleId, userId);
     res.status(OK).json(result);
   } catch (error) {

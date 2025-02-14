@@ -326,32 +326,23 @@ export const sendDeleteBulkRequest = async (mockToken: string, moduleName: strin
   return await supertest(app).delete(`/api/${moduleName}/bulk`).set("Authorization", mockToken).send({ moduleIds }).expect(expectation);
 };
 
-export async function registerFlow(overridesData: any, overridesUser: any, password: string) {
-  let response: any = {};
-  const moduleName = "users";
-  const moduleUrl = "auth";
-  const owner = await register(fields, CREATED, [], overridesData);
-  const mockTokenShort = generateMockTokenRandom(owner?.body?.user?._id, owner?.body?.user?.email, owner?.body?.user?.name, true);
-  await supertest(app).post(`/api/${moduleUrl}/email/verify`).send({ email: owner?.body?.user?.email }).expect(OK);
-  await supertest(app).patch(`/api/${moduleUrl}/email`).set("Authorization", mockTokenShort).expect(OK);
-  const post = await loginRequest(moduleUrl, { email: owner?.body?.user?.email, password: password }, CREATED);
-  overridesUser.parent = post?.body?.parent;
-  response = await createRequest(fields, `Bearer ${post?.body?.token}`, moduleName, CREATED, [], overridesUser);
+export async function registerFlow(overridesData: any) {
+  const response = await register(fields, CREATED, [], { ...overridesData });
   return response;
 }
 
-export async function verifyEmailFlow(overridesData: any, overridesUser: any, password: string) {
+export async function verifyEmailFlow(overridesData: any) {
   const moduleUrl = "auth";
-  const post = await registerFlow(overridesData, overridesUser, password);
+  const post = await registerFlow(overridesData);
   await supertest(app).post(`/api/${moduleUrl}/email/verify`).send({ email: post?.body?.email }).expect(OK);
   const mockTokenShort2 = generateMockTokenRandom(post?.body?._id, post?.body?.email, post?.body?.name, true);
   const response = await supertest(app).patch(`/api/${moduleUrl}/email`).set("Authorization", mockTokenShort2).expect(OK);
   return response;
 }
 
-export async function loginFlow(overridesData: any, overridesUser: any, password: string) {
+export async function loginFlow(overridesData: any) {
   const moduleUrl = "auth";
-  const res = await verifyEmailFlow(overridesData, overridesUser, password);
-  const response = await loginRequest(moduleUrl, { email: res?.body?.email, password: password }, CREATED);
+  const res = await verifyEmailFlow(overridesData);
+  const response = await loginRequest(moduleUrl, { email: res?.body?.email, password: overridesData?.password }, CREATED);
   return response;
 }
