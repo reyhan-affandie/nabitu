@@ -101,7 +101,7 @@ const Upsert = () => {
         <Loader />
       ) : (
         <form action={formAction} className="mx-auto w-full">
-          <CustomPageTitle pageName="Add Invoice" />
+          <CustomPageTitle pageName={`${data?.data?.formMethod || "create"} invoice`} />
 
           <div className="grid-cols grid gap-8">
             <div className="col-span-5 xl:col-span-3">
@@ -181,7 +181,7 @@ const Upsert = () => {
 
                   <div className="flex justify-end gap-4.5">
                     <button className="flex justify-center rounded bg-primary px-16 py-2 font-medium text-gray hover:bg-opacity-90" type="submit">
-                      {id === "create" ? "+ Add Invoice" : "+ Edit Invoice"}
+                      {`${data?.data?.formMethod || "create"} invoice`}
                     </button>
                   </div>
                   <ErrorsHandling error={formState?.message} />
