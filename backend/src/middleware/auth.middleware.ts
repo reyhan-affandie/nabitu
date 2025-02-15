@@ -1,4 +1,4 @@
-import { RequestHandler } from "express";
+import { RequestHandler, Request } from "express";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@/constants/env";
 import createHttpError from "http-errors";
@@ -6,6 +6,7 @@ import { UNAUTHORIZED } from "@/constants/http";
 import { Types } from "mongoose";
 import { AuthRequest } from "@/types/types";
 import Blacklist from "@/models/blacklists.model";
+import { cleanupUploadedFiles } from "@/utils/utlis";
 
 export const generateToken = (user: AuthRequest) => {
   const signedJwt = jwt.sign(
@@ -42,9 +43,11 @@ export const isAuth: RequestHandler = async (req, res, next) => {
     const { authorization } = req.headers;
     const checkBlacklist = await Blacklist.findOne({ token: authorization });
     if (checkBlacklist) {
+      if (req.files) cleanupUploadedFiles(req);
       return next(createHttpError(UNAUTHORIZED, "Token revoked"));
     }
     if (!authorization) {
+      if (req.files) cleanupUploadedFiles(req);
       return next(createHttpError(UNAUTHORIZED, "Access Denied"));
     }
     const token = authorization.split(" ")[1];
@@ -59,6 +62,7 @@ export const isAuth: RequestHandler = async (req, res, next) => {
     };
     next();
   } catch (err) {
+    if (req.files) cleanupUploadedFiles(req);
     const errorMessage =
       (err as jwt.JsonWebTokenError).name === "TokenExpiredError"
         ? "Token expired"
@@ -70,7 +74,7 @@ export const isAuth: RequestHandler = async (req, res, next) => {
   }
 };
 
-export const verifyAuthorization = async (authorization: string) => {
+export const verifyAuthorization = async (req: Request, authorization: string) => {
   const token = authorization.split(" ")[1];
   try {
     const res = jwt.verify(token, JWT_SECRET) as {
@@ -82,6 +86,7 @@ export const verifyAuthorization = async (authorization: string) => {
     };
     return res;
   } catch (err) {
+    if (req.files) cleanupUploadedFiles(req);
     const errorMessage =
       (err as jwt.JsonWebTokenError).name === "TokenExpiredError"
         ? "Token expired"

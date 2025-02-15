@@ -5,7 +5,7 @@ import { multerMiddlewareImage } from "@/middleware/multer.middleware";
 
 const router = express.Router();
 
-router.post("/register", multerMiddlewareImage.single("photo"), ControllersEngine.register);
+router.post("/register", multerMiddlewareImage.fields([{ name: "photo", maxCount: 1 }]), ControllersEngine.register);
 router.post("/email/verify", ControllersEngine.sendVerifyEmail);
 router.patch("/email", isAuth, ControllersEngine.verifyEmail);
 router.post("/login", ControllersEngine.login);

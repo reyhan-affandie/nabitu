@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import { BAD_REQUEST, CREATED, NOT_FOUND, OK } from "@/constants/http";
 import { engineGetOne, engineGet, engineCreateUpdate } from "@/middleware/engine.middleware";
 import { verifyAuthorization } from "@/middleware/auth.middleware";
+import { cleanupUploadedFiles } from "@/utils/utlis";
 
 export const get: RequestHandler = async (req, res, next) => {
   try {
@@ -17,7 +18,7 @@ export const get: RequestHandler = async (req, res, next) => {
 
 export const getOne: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const moduleId = req.params.moduleId;
     const userId = decodedToken._id;
     if (!mongoose.isValidObjectId(moduleId)) {
@@ -35,7 +36,7 @@ export const getOne: RequestHandler = async (req, res, next) => {
 
 export const create: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const userId = decodedToken._id;
     req.body.verified = false;
 
@@ -44,13 +45,14 @@ export const create: RequestHandler = async (req, res, next) => {
     const result = await engineGetOne(Model, fields, data._id, userId);
     res.status(CREATED).json(result);
   } catch (error) {
+    if(req.files) cleanupUploadedFiles(req);
     next(error);
   }
 };
 
 export const update: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const moduleId = req.body.moduleId;
     const userId = decodedToken._id;
     if (req.body.password) {
@@ -58,6 +60,7 @@ export const update: RequestHandler = async (req, res, next) => {
     }
     const data = await Model.findOne({ _id: moduleId }).exec();
     if (!data) {
+      if(req.files) cleanupUploadedFiles(req);
       return next(createHttpError(NOT_FOUND, "data not found"));
     }
     req.body.verified = data.verified;
@@ -66,13 +69,14 @@ export const update: RequestHandler = async (req, res, next) => {
     const result = await engineGetOne(Model, fields, moduleId, userId);
     res.status(OK).json(result);
   } catch (error) {
+    if(req.files) cleanupUploadedFiles(req);
     next(error);
   }
 };
 
 export const del: RequestHandler = async (req, res, next) => {
   try {
-    await verifyAuthorization(req.headers.authorization);
+    await verifyAuthorization(req, req.headers.authorization);
     const moduleId = req.body.moduleId;
     if (!mongoose.isValidObjectId(moduleId)) {
       return next(createHttpError(BAD_REQUEST, "Invalid ID"));
@@ -91,7 +95,7 @@ export const del: RequestHandler = async (req, res, next) => {
 
 export const bulkDel: RequestHandler = async (req, res, next) => {
   try {
-    await verifyAuthorization(req.headers.authorization);
+    await verifyAuthorization(req, req.headers.authorization);
     const moduleIds = req.body.moduleIds;
     if (!Array.isArray(moduleIds) || moduleIds.length === 0) {
       return next(createHttpError(BAD_REQUEST, "Invalid IDs"));

@@ -49,7 +49,7 @@ describe(`${moduleName} Controller UNIT TESTS`, () => {
 
   it(`${testTitle} READ ONE - ${OK}:OK`, async () => {
     const post = await createRequest(fields, mockToken, moduleName, CREATED);
-    await sendGetRequest(mockToken, `/api/${moduleName}/${post.body._id}`, OK);
+    await sendGetRequest(mockToken, `/api/${moduleName}/${post?.body?._id}`, OK);
   });
 
   it(`${testTitle} READ ONE - ${BAD_REQUEST}:BAD_REQUEST`, async () => {
@@ -64,7 +64,8 @@ describe(`${moduleName} Controller UNIT TESTS`, () => {
 
   it(`${testTitle} UPDATE - ${OK}:OK`, async () => {
     const post = await createRequest(fields, mockToken, moduleName, CREATED);
-    await sendUpdateRequest(fields, mockToken, moduleName, post.body._id, [], {}, OK);
+    console.log("post?.body", post?.body)
+    await sendUpdateRequest(fields, mockToken, moduleName, post?.body?._id, [], {}, OK);
   });
 
   it(`${testTitle} UPDATE - ${NOT_FOUND}:NOT_FOUND`, async () => {
@@ -74,7 +75,7 @@ describe(`${moduleName} Controller UNIT TESTS`, () => {
 
   it(`${testTitle} DELETE - ${OK}:OK`, async () => {
     const post = await createRequest(fields, mockToken, moduleName, CREATED);
-    await sendDeleteRequest(mockToken, moduleName, post.body._id, OK);
+    await sendDeleteRequest(mockToken, moduleName, post?.body?._id, OK);
   });
 
   it(`${testTitle} DELETE - ${BAD_REQUEST}:BAD_REQUEST`, async () => {

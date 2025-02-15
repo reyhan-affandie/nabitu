@@ -34,7 +34,7 @@ const dynamicFileFilter = (allowedFileType: string[]) => {
 export const multerMiddlewareImage = multer({
   limits: {
     fileSize: 1 * 1024 * 1024, // 1MB
-    files: 1,
+    files: 3,
   },
   storage: multer.diskStorage({
     destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void): void => {
@@ -53,7 +53,7 @@ export const multerMiddlewareImage = multer({
 export const multerMiddlewareFile = multer({
   limits: {
     fileSize: 1 * 1024 * 1024, // 1MB
-    files: 1,
+    files: 3,
   },
   storage: multer.diskStorage({
     destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void): void => {

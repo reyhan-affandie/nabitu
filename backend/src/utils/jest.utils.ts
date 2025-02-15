@@ -9,6 +9,8 @@ import { CreateDataFromFieldsParams, FieldsType } from "@/types/types";
 import { regexBoolean, regexCountry, regexEmail, regexNumber, regexPassword, regexPhone, regexString } from "@/utils/regex";
 import { JWT_SECRET } from "@/constants/env";
 import { fields } from "@/models/users.model";
+import fs from "fs";
+import path from "path";
 
 export const generateRandomString = (maxLength: number, stringOnly: boolean): string => {
   let characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -83,47 +85,91 @@ export const generateMockTokenExp = (_id: Types.ObjectId | string, email: string
   )}`;
 };
 
+const UPLOAD_DIR = path.join(__dirname, "../../uploads/images/users");
+
+// Ensure the real upload directory exists
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+
 // Dynamically create mock data
-export const createDataFromFields = ({ fields, undefinedFields = [], overrides = {} }: CreateDataFromFieldsParams): Record<string, unknown> => {
-  return Object.keys(fields).reduce((acc: Record<string, unknown>, key: string) => {
-    const maxLength = fields[key]?.maxLength || 10; // Default maxLength to 10 if not provided
+export const createDataFromFields = ({
+  fields,
+  undefinedFields = [],
+  overrides = {},
+}: CreateDataFromFieldsParams): { body: Record<string, unknown>; files: { [key: string]: Express.Multer.File[] } } => {
+  const data: Record<string, unknown> = {};
+  const files: { [key: string]: Express.Multer.File[] } = {};
 
-    if (undefinedFields.includes(key)) {
-      return acc;
-    }
+  Object.keys(fields).forEach((key) => {
+    const maxLength = fields[key]?.maxLength || 10;
 
+    if (undefinedFields.includes(key)) return;
     if (overrides[key] !== undefined) {
-      acc[key] = overrides[key];
-      return acc;
+      data[key] = overrides[key];
+      return;
     }
 
     if (key.endsWith("Date")) {
-      acc[key] = Date.now(); // ✅ Assign Date.now() for fields with "Date" suffix
+      data[key] = Date.now();
     } else if (fields[key].type === mongoose.Schema.Types.ObjectId) {
-      acc[key] = new mongoose.Types.ObjectId().toString();
+      data[key] = new mongoose.Types.ObjectId().toString();
     } else if (fields[key].regex === regexEmail) {
-      acc[key] = generateRandomString(10, false).toLowerCase() + "@mail.com";
+      data[key] = generateRandomString(10, false).toLowerCase() + "@mail.com";
     } else if (fields[key].regex === regexCountry) {
-      acc[key] = generateRandomString(2, true).toUpperCase();
+      data[key] = generateRandomString(2, true).toUpperCase();
     } else if (fields[key].regex === regexPhone) {
-      acc[key] = "+" + generateRandomNumber(10);
+      data[key] = "+" + generateRandomNumber(10);
     } else if (fields[key].regex === regexPassword) {
-      acc[key] = generateRandomString(10, false) + generateRandomNumber(10).toString();
+      data[key] = generateRandomString(10, false) + generateRandomNumber(10).toString();
     } else if (fields[key].isImage === true) {
-      acc[key] = generateRandomString(10, false).toLowerCase() + ".jpg";
+      const filename = generateRandomString(10, false).toLowerCase() + ".jpg";
+      const filePath = path.join(UPLOAD_DIR, filename);
+      fs.writeFileSync(filePath, Buffer.from("Mock image data"));
+
+      files[key] = [
+        {
+          fieldname: key,
+          originalname: filename,
+          encoding: "7bit",
+          mimetype: "image/jpeg",
+          path: filePath,
+          buffer: fs.readFileSync(filePath),
+          size: fs.statSync(filePath).size,
+        } as Express.Multer.File,
+      ];
+
+      data[key] = filename;
     } else if (fields[key].isFile === true) {
-      acc[key] = generateRandomString(10, false).toLowerCase() + ".pdf";
+      const filename = generateRandomString(10, false).toLowerCase() + ".pdf";
+      const filePath = path.join(UPLOAD_DIR, filename);
+      fs.writeFileSync(filePath, Buffer.from("Mock PDF data"));
+
+      files[key] = [
+        {
+          fieldname: key,
+          originalname: filename,
+          encoding: "7bit",
+          mimetype: "application/pdf",
+          path: filePath,
+          buffer: fs.readFileSync(filePath),
+          size: fs.statSync(filePath).size,
+        } as Express.Multer.File,
+      ];
+
+      data[key] = filename;
     } else if (fields[key].regex === regexString) {
-      acc[key] = generateRandomString(maxLength, false);
+      data[key] = generateRandomString(maxLength, false);
     } else if (fields[key].regex === regexNumber) {
-      acc[key] = generateRandomNumber(maxLength);
+      data[key] = generateRandomNumber(maxLength);
     } else if (fields[key].regex === regexBoolean) {
-      acc[key] = Math.random() < 0.5;
+      data[key] = Math.random() < 0.5;
     } else {
-      acc[key] = key; // Default case for other field types
+      data[key] = key;
     }
-    return acc;
-  }, {});
+  });
+
+  return { body: data, files };
 };
 
 // Reusable function for creating requests
@@ -157,6 +203,36 @@ export const loginRequest = async (moduleUrl: string, data: Record<string, unkno
   }
 };
 
+const cleanupUploadedFiles = (fields: FieldsType, responseBody: Record<string, unknown>, files: { [key: string]: Express.Multer.File[] }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  Object.entries(files).forEach(([key, fileArray]) => {
+    fileArray.forEach((file) => {
+      if (fs.existsSync(file.path)) {
+        try {
+          fs.unlinkSync(file.path);
+        } catch (error) {
+          console.error(`❌ ERROR: Failed to delete file: ${file.path}`, error);
+        }
+      }
+    });
+  });
+
+  // ✅ Now also check API response filenames
+  Object.entries(fields).forEach(([field, options]) => {
+    if (options.isFile || options.isImage) {
+      const responseFilePath = responseBody[field] as string | undefined;
+
+      if (responseFilePath && fs.existsSync(responseFilePath)) {
+        try {
+          fs.unlinkSync(responseFilePath);
+        } catch (error) {
+          console.error(`❌ ERROR: Failed to delete response file: ${responseFilePath}`, error);
+        }
+      }
+    }
+  });
+};
+
 export const createRequest = async (
   fields: FieldsType,
   mockToken: string,
@@ -166,26 +242,45 @@ export const createRequest = async (
   overrides: Record<string, unknown> = {},
   initialData?: Record<string, unknown>, // Optionally pass initial data
 ): Promise<supertest.Response> => {
-  const data = {
-    ...createDataFromFields({ fields, undefinedFields, overrides }),
-    ...initialData,
-  };
-  try {
-    const response = await supertest(app).post(`/api/${moduleName}`).set("Authorization", mockToken).send(data).expect(expectation);
+  const { body, files } = createDataFromFields({ fields, undefinedFields, overrides });
 
-    /*console.debug("Response received:", {
-      status: response.status,
-      body: response.body,
-    });*/
+  let request = supertest(app).post(`/api/${moduleName}`).set("Authorization", mockToken);
+
+  if (Object.keys(files).length > 0) {
+    Object.entries({ ...body, ...initialData }).forEach(([key, value]) => {
+      if (typeof value === "boolean" || typeof value === "number") {
+        request.field(key, value.toString()); // Convert non-string values to strings
+      } else {
+        request.field(key, value as string);
+      }
+    });
+    Object.entries(files).forEach(([key, fileArray]) => {
+      if (fileArray.length > 0) {
+        request.attach(key, fileArray[0].path); // Attach only the first file
+      }
+    });
+  } else {
+    // 🔥 If NO files, send JSON
+    request = request.set("Content-Type", "application/json").send({ ...body, ...initialData });
+  }
+  try {
+    const response = await request.expect(expectation);
+    if (Object.keys(files).length > 0) {
+      cleanupUploadedFiles(fields, response?.body, files);
+    }
+
     return response;
   } catch (error) {
     const supertestError = error as SupertestError;
 
     if (supertestError.response?.status !== expectation) {
+      if (Object.keys(files).length > 0) {
+        cleanupUploadedFiles(fields, body, files);
+      }
       console.error("Debug Info:", {
         url: `/api/${moduleName}`,
         method: "post",
-        sentData: data,
+        sentData: { body, files },
       });
     }
     throw supertestError;
@@ -199,6 +294,7 @@ export const register = async (
   overrides: Record<string, unknown> = {},
   initialData?: Record<string, unknown>, // Optionally pass initial data
 ): Promise<supertest.Response> => {
+  // Mock MongoDB session for transactions
   const sessionMock = await mongoose.startSession();
   sessionMock.startTransaction = jest.fn();
   sessionMock.commitTransaction = jest.fn();
@@ -207,25 +303,46 @@ export const register = async (
 
   jest.spyOn(mongoose, "startSession").mockResolvedValue(sessionMock);
 
-  const data = {
-    ...createDataFromFields({ fields, undefinedFields, overrides }),
-    ...initialData,
-  };
-  try {
-    const response = await supertest(app).post(`/api/auth/register`).send(data).expect(expectation);
+  const { body, files } = createDataFromFields({ fields, undefinedFields, overrides });
 
-    /*console.debug("Response received:", {
-      status: response.status,
-      body: response.body,
-    });*/
+  let request = supertest(app).post(`/api/auth/register`);
+
+  if (Object.keys(files).length > 0) {
+    Object.entries({ ...body, ...initialData }).forEach(([key, value]) => {
+      if (typeof value === "boolean" || typeof value === "number") {
+        request.field(key, value.toString()); // Convert non-string values to strings
+      } else {
+        request.field(key, value as string);
+      }
+    });
+    Object.entries(files).forEach(([key, fileArray]) => {
+      if (fileArray.length > 0) {
+        request.attach(key, fileArray[0].path); // Attach only the first file
+      }
+    });
+  } else {
+    // 🔥 If NO files, send JSON
+    request = request.set("Content-Type", "application/json").send({ ...body, ...initialData });
+  }
+
+  try {
+    const response = await request.expect(expectation);
+    if (Object.keys(files).length > 0) {
+      cleanupUploadedFiles(fields, response?.body, files);
+    }
+
     return response;
   } catch (error) {
     const supertestError = error as SupertestError;
 
     if (supertestError.response?.status !== expectation) {
-      console.error("Debug Info:", {
+      if (Object.keys(files).length > 0) {
+        cleanupUploadedFiles(fields, body, files);
+      }
+      console.error("❌ Debug Info:", {
         url: `/api/auth/register`,
-        sentData: data,
+        method: "post",
+        sentData: { body, files },
       });
     }
     throw supertestError;
@@ -254,11 +371,6 @@ export const sendGetRequest = async (mockToken: string, url: string, expectation
   try {
     const response = await supertest(app).get(url).set("Authorization", mockToken).expect(expectation);
 
-    /*console.debug("Response received:", {
-      status: response.status,
-      body: response.body,
-    });*/
-
     return response;
   } catch (error) {
     const supertestError = error as SupertestError;
@@ -284,30 +396,51 @@ export const sendUpdateRequest = async (
   overrides: Record<string, unknown> = {},
   expectation: number,
 ): Promise<supertest.Response> => {
-  // Generate mock data dynamically from fields
-  const data = createDataFromFields({ fields, undefinedFields, overrides });
-  try {
-    // Send the update request with generated data
-    const response = await supertest(app)
-      .patch(`/api/${moduleName}`)
-      .set("Authorization", mockToken)
-      .send({ moduleId, ...data }) // Include moduleId in the request body
-      .expect(expectation);
+  // ✅ Generate mock data dynamically
+  const { body, files } = createDataFromFields({ fields, undefinedFields, overrides });
 
-    /*console.debug("Response received:", {
-      status: response.status,
-      body: response.body,
-    });*/
+  let request = supertest(app).patch(`/api/${moduleName}`).set("Authorization", mockToken);
+
+  if (Object.keys(files).length > 0) {
+    // ✅ Attach JSON body data using `.field()`
+    Object.entries({ moduleId, ...body }).forEach(([key, value]) => {
+      if (value === null || value === undefined) return; // Skip null/undefined values
+
+      if (typeof value === "boolean" || typeof value === "number") {
+        request.field(key, String(value)); // ✅ Safe conversion
+      } else if (typeof value === "string") {
+        request.field(key, value);
+      } else {
+        request.field(key, JSON.stringify(value)); // ✅ Fallback for objects/arrays
+      }
+    });
+    Object.entries(files).forEach(([key, fileArray]) => {
+      if (fileArray.length > 0) {
+        request.attach(key, fileArray[0].path); // Attach only the first file
+      }
+    });
+  } else {
+    // 🔥 If NO files, send JSON
+    request = request.set("Content-Type", "application/json").send({ moduleId, ...body });
+  }
+  try {
+    const response = await request.expect(expectation);
+    if (Object.keys(files).length > 0) {
+      cleanupUploadedFiles(fields, response?.body, files);
+    }
+
     return response;
   } catch (error) {
     const supertestError = error as SupertestError;
 
-    // Debugging information if the status does not match expectation
     if (supertestError.response?.status !== expectation) {
-      console.error("Debug Info:", {
+      if (Object.keys(files).length > 0) {
+        cleanupUploadedFiles(fields, body, files);
+      }
+      console.error("❌ Debug Info:", {
         url: `/api/${moduleName}`,
         method: "patch",
-        sentData: { moduleId, ...data },
+        sentData: { moduleId, body, files },
         expectation,
       });
     }

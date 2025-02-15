@@ -4,7 +4,7 @@ import { BAD_REQUEST, CONFLICT, NOT_FOUND } from "@/constants/http";
 import createHttpError from "http-errors";
 import { Request } from "express";
 import { regexString } from "@/utils/regex";
-import { hashPassword } from "@/utils/utlis";
+import { cleanupUploadedFiles, hashPassword } from "@/utils/utlis";
 
 export const engineGet = async <T>(Model: MongooseModel<T>, fields: FieldsType, req: Request) => {
   try {
@@ -141,7 +141,12 @@ export const engineGetInputValues = async <T>(Model: MongooseModel<T>, fields: F
     const value = req.body[key];
 
     if (field.isImage || field.isFile) {
-      requestValues[key] = req.file?.filename || "";
+      if (req.files && typeof req.files === "object") {
+        const files = req.files as { [key: string]: Express.Multer.File[] };
+        requestValues[key] = files[key]?.[0]?.path || ""; // Ensure full path is stored
+      } else {
+        requestValues[key] = "";
+      }
     } else if (field.isHashed && value) {
       requestValues[key] = await hashPassword(value);
     } else {
@@ -152,6 +157,7 @@ export const engineGetInputValues = async <T>(Model: MongooseModel<T>, fields: F
     if (!isUpdate && req.body.access === 1 && req.body._id) {
       const moduleId = req.body._id;
       if (!mongoose.isValidObjectId(moduleId)) {
+        if (req.files) cleanupUploadedFiles(req);
         throw createHttpError(BAD_REQUEST, "Invalid module ID.");
       }
       requestValues._id = moduleId;
@@ -168,6 +174,7 @@ export const engineCreateUpdate = async <T>(Model: MongooseModel<T>, fields: Fie
   if (isUpdate) {
     const moduleId = req.body.moduleId;
     if (!mongoose.isValidObjectId(moduleId)) {
+      if (req.files) cleanupUploadedFiles(req);
       throw createHttpError(BAD_REQUEST, "Invalid module ID.");
     }
     requestValues.moduleId = moduleId;
@@ -176,8 +183,11 @@ export const engineCreateUpdate = async <T>(Model: MongooseModel<T>, fields: Fie
     }
   }
   for (let i = 0; i < fieldKeys.length; i++) {
-    if ((fields[fieldKeys[i]].isImage === true || fields[fieldKeys[i]].isFile === true) && req.file?.filename) {
-      requestValues[fieldKeys[i]] = req.file?.filename;
+    if ((fields[fieldKeys[i]].isImage === true || fields[fieldKeys[i]].isFile === true) && req.files) {
+      const files = req.files as { [key: string]: Express.Multer.File[] };
+      if (files[fieldKeys[i]]?.[0]?.filename) {
+        requestValues[fieldKeys[i]] = files[fieldKeys[i]][0].filename;
+      }
     } else {
       if (!isUpdate && fieldKeys[i] !== "password") {
         if (req.body[fieldKeys[i]] !== undefined) {
@@ -253,7 +263,7 @@ export const engineCreateUpdate = async <T>(Model: MongooseModel<T>, fields: Fie
 
         // Check unique constraints
         if (field.unique === true) {
-          if (!((Model.collection.name === "users") && req.body.verified === false)) {
+          if (!(Model.collection.name === "users" && req.body.verified === false)) {
             const checkUnique = await Model.findOne({
               [key]: requestValues[key],
               _id: { $ne: requestValues["moduleId"] },
@@ -271,8 +281,8 @@ export const engineCreateUpdate = async <T>(Model: MongooseModel<T>, fields: Fie
   );
   // If there are errors, throw a single error with all messages
   if (errors.length > 0) {
+    if (req.files) cleanupUploadedFiles(req);
     const errorMessages = errors.map((error) => error.message).join(", ");
-    console.log(errorMessages);
     const status = errors[0]?.status || BAD_REQUEST; // Default to BAD_REQUEST if no status provided
     throw createHttpError(status, `Validation failed: ${errorMessages}`);
   }

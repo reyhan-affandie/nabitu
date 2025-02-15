@@ -8,7 +8,7 @@ import { verifyAuthorization } from "@/middleware/auth.middleware";
 
 export const get: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     req.query.parent = String(decodedToken._id);
     const result = await engineGet(Model, fields, req);
     res.status(OK).json(result);
@@ -19,7 +19,7 @@ export const get: RequestHandler = async (req, res, next) => {
 
 export const getOne: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const moduleId = req.params.moduleId;
     const userId = decodedToken._id;
     if (!mongoose.isValidObjectId(moduleId)) {
@@ -37,7 +37,7 @@ export const getOne: RequestHandler = async (req, res, next) => {
 
 export const create: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const userId = decodedToken._id;
     req.body.parent = userId;
     const requestValues = await engineCreateUpdate(Model, fields, req, false);
@@ -51,7 +51,7 @@ export const create: RequestHandler = async (req, res, next) => {
 
 export const update: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const moduleId = req.body.moduleId;
     const userId = decodedToken._id;
     req.body.parent = userId;
@@ -71,7 +71,7 @@ export const update: RequestHandler = async (req, res, next) => {
 
 export const del: RequestHandler = async (req, res, next) => {
   try {
-    await verifyAuthorization(req.headers.authorization);
+    await verifyAuthorization(req, req.headers.authorization);
     const moduleId = req.body.moduleId;
     if (!mongoose.isValidObjectId(moduleId)) {
       return next(createHttpError(BAD_REQUEST, "Invalid ID"));
@@ -90,7 +90,7 @@ export const del: RequestHandler = async (req, res, next) => {
 
 export const bulkDel: RequestHandler = async (req, res, next) => {
   try {
-    await verifyAuthorization(req.headers.authorization);
+    await verifyAuthorization(req, req.headers.authorization);
     const moduleIds = req.body.moduleIds;
     if (!Array.isArray(moduleIds) || moduleIds.length === 0) {
       return next(createHttpError(BAD_REQUEST, "Invalid IDs"));

@@ -17,7 +17,7 @@ import {
   //APP_ORIGIN,
 } from "@/constants/env";
 import { engineCreateUpdate, engineGetOne } from "@/middleware/engine.middleware";
-import { hashPassword } from "@/utils/utlis";
+import { cleanupUploadedFiles, hashPassword } from "@/utils/utlis";
 
 export const register: RequestHandler = async (req, res, next) => {
   const requiredFields = ["name", "email", "password"];
@@ -25,6 +25,7 @@ export const register: RequestHandler = async (req, res, next) => {
   const missingFields = requiredFields.filter((field) => req.body[field] === undefined || req.body[field] === "");
 
   if (missingFields.length > 0) {
+    if (req.files) cleanupUploadedFiles(req);
     return next(createHttpError(BAD_REQUEST, `${missingFields.join(", ")} required`));
   }
 
@@ -78,6 +79,7 @@ export const register: RequestHandler = async (req, res, next) => {
     // ROLLBACK TRANSACTION IF ANY ERROR OCCURS
     await session.abortTransaction();
     session.endSession();
+    if (req.files) cleanupUploadedFiles(req);
     next(error);
   }
 };
@@ -161,7 +163,7 @@ export const sendVerifyEmail: RequestHandler = async (req, res, next) => {
 
 export const verifyEmail: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const user = await Model.findOne({
       _id: String(decodedToken._id),
       email: String(decodedToken.email),
@@ -307,7 +309,7 @@ export const forgotPassword: RequestHandler = async (req, res, next) => {
     }
 
     const { password } = req.body;
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const user = await Model.findOne({
       _id: String(decodedToken._id),
       email: String(decodedToken.email),
@@ -342,7 +344,7 @@ export const updatePassword: RequestHandler = async (req, res, next) => {
   }
 
   const { oldPassword, password, email } = req.body;
-  const decodedToken = await verifyAuthorization(req.headers.authorization);
+  const decodedToken = await verifyAuthorization(req, req.headers.authorization);
 
   try {
     const moduleId = decodedToken._id;
@@ -377,7 +379,7 @@ export const updatePassword: RequestHandler = async (req, res, next) => {
 
 export const get: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const user = await Model.findOne({
       _id: decodedToken._id,
       email: decodedToken.email,
@@ -393,7 +395,7 @@ export const get: RequestHandler = async (req, res, next) => {
 
 export const refresh: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const user = await Model.findOne({
       _id: decodedToken._id,
       email: decodedToken.email,
@@ -416,7 +418,7 @@ export const refresh: RequestHandler = async (req, res, next) => {
 
 export const logout: RequestHandler = async (req, res, next) => {
   try {
-    const decodedToken = await verifyAuthorization(req.headers.authorization);
+    const decodedToken = await verifyAuthorization(req, req.headers.authorization);
     const user = await Model.findOne({
       _id: decodedToken._id,
       email: decodedToken.email,

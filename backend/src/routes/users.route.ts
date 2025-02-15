@@ -6,8 +6,8 @@ const router = express.Router();
 
 router.get("/", ControllersEngine.get);
 router.get("/:moduleId", ControllersEngine.getOne);
-router.post("/", multerMiddlewareImage.single("photo"), ControllersEngine.create);
-router.patch("/", multerMiddlewareImage.single("photo"), ControllersEngine.update);
+router.post("/", multerMiddlewareImage.fields([{ name: "photo", maxCount: 1 }]), ControllersEngine.create);
+router.patch("/", multerMiddlewareImage.fields([{ name: "photo", maxCount: 1 }]), ControllersEngine.update);
 router.delete("/", ControllersEngine.del);
 router.delete("/bulk", ControllersEngine.bulkDel);
 
